@@ -2,7 +2,7 @@
     "name": "devcbh/laravel-ai-provider",
     "description": "A Laravel AI wrapper package with multiple provider drivers.",
     "type": "library",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "autoload": {
         "psr-4": {
             "Devcbh\\LaravelAiProvider\\": "src/"
