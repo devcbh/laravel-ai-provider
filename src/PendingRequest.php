@@ -3,6 +3,7 @@
 namespace Devcbh\LaravelAiProvider;
 
 use Devcbh\LaravelAiProvider\Contracts\Driver;
+use Devcbh\LaravelAiProvider\Contracts\Template;
 use Devcbh\LaravelAiProvider\DTOs\Message;
 
 class PendingRequest
@@ -15,6 +16,14 @@ class PendingRequest
     public function role(string $message): self
     {
         $this->messages[] = Message::system($message);
+        return $this;
+    }
+
+    public function template(Template $template, array $data = []): self
+    {
+        $this->role($template->systemPrompt());
+        $this->messages[] = Message::user($template->userPrompt($data));
+
         return $this;
     }
 

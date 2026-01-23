@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Facade;
 
 /**
  * @method static \Devcbh\LaravelAiProvider\PendingRequest role(string $message)
+ * @method static \Devcbh\LaravelAiProvider\PendingRequest template(\Devcbh\LaravelAiProvider\Contracts\Template $template, array $data = [])
  * @method static \Devcbh\LaravelAiProvider\PendingRequest lastContext(array $messages)
  * @method static \Devcbh\LaravelAiProvider\PendingRequest model(string $model)
  * @method static \Devcbh\LaravelAiProvider\PendingRequest temperature(float $temperature)
