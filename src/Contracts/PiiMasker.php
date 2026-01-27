@@ -21,6 +21,14 @@ interface PiiMasker
     public function unmask(string $text): string;
 
     /**
+     * Irreversibly redact PII in the given text.
+     *
+     * @param string $text
+     * @return string
+     */
+    public function scrub(string $text): string;
+
+    /**
      * Add or override PII patterns.
      *
      * @param array $patterns

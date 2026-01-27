@@ -109,6 +109,46 @@ class PendingRequestPiiTest extends TestCase
         $this->assertEquals("The email was john@example.com", $response);
     }
 
+    /** @test */
+    public function it_scrubs_pii_when_enabled()
+    {
+        $driver = Mockery::mock(Driver::class);
+        $config = require __DIR__ . '/../config/ai.php';
+        $masker = new DefaultPiiMasker($config['pii_masking']);
+        
+        $request = new PendingRequest($driver, $masker);
+        $request->scrubPii(true);
+
+        $driver->shouldReceive('chat')
+            ->once()
+            ->withArgs(function ($messages, $options) {
+                return str_contains($messages[0]->content, "[REDACTED EMAIL]");
+            })
+            ->andReturn("OK");
+
+        $response = $request->ask("Contact me at john@example.com");
+        $this->assertEquals("OK", $response);
+    }
+
+    /** @test */
+    public function it_does_not_unmask_when_scrubbed()
+    {
+        $driver = Mockery::mock(Driver::class);
+        $config = require __DIR__ . '/../config/ai.php';
+        $masker = new DefaultPiiMasker($config['pii_masking']);
+        
+        $request = new PendingRequest($driver, $masker);
+        $request->scrubPii(true);
+
+        $driver->shouldReceive('chat')
+            ->once()
+            ->andReturn("The email was [REDACTED EMAIL]");
+
+        $response = $request->ask("john@example.com");
+        
+        $this->assertEquals("The email was [REDACTED EMAIL]", $response);
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();

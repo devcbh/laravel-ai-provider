@@ -65,7 +65,29 @@ return [
     */
 
     'pii_masking' => [
-        'enabled' => env('LARAVEL_AURA_AI_PII_MASKING_ENABLED', false),
+        /*
+        |--------------------------------------------------------------------------
+        | Enable PII Masking
+        |--------------------------------------------------------------------------
+        |
+        | When enabled, the package will automatically detect and mask sensitive
+        | information (PII) before sending it to the AI provider.
+        |
+        */
+        'enabled' => env('LARAVEL_AURA_AI_PII_MASKING_ENABLED', true),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Strict Mode (Zero Liability)
+        |--------------------------------------------------------------------------
+        |
+        | In strict mode, if PII is detected and cannot be safely masked or 
+        | if unmasking is disabled, the request will be aborted or 
+        | heavily redacted to ensure zero liability.
+        |
+        */
+        'strict' => env('LARAVEL_AURA_AI_PII_STRICT_MODE', false),
+
         'unmasking' => [
             'enabled' => env('LARAVEL_AURA_AI_PII_UNMASKING_ENABLED', true),
         ],

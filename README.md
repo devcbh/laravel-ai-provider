@@ -275,6 +275,52 @@ If unmasking is disabled, you can define custom replacement strings for specific
 ],
 ```
 
+## Zero Liability & AI Data Handling
+
+This package is designed with a **Zero Liability** philosophy. We provide tools to ensure that sensitive data never leaves your infrastructure and that your AI interactions are secure and compliant.
+
+### PII Masking & Redaction
+
+By default, PII masking is enabled. This automatically detects and masks sensitive information (like emails, credit cards, API keys) before sending them to any AI provider.
+
+```php
+// Automatically masks PII and unmasks it in the response
+$response = Ai::ask('My email is john@example.com');
+```
+
+#### Strict Mode (Irreversible Redaction)
+
+For maximum security, you can enable **Strict Mode**. This irrevertibly redacts (scrubs) PII from your prompts, ensuring that even if the AI provider logs the data, no sensitive information is present.
+
+```php
+// Irreversibly scrubs PII from the prompt
+$response = Ai::scrubPii()->ask('My secret key is sk_1234567890');
+```
+
+You can also enable this globally in `config/ai.php`:
+
+```php
+'pii_masking' => [
+    'enabled' => true,
+    'strict' => true, // Enforce irreversible redaction
+],
+```
+
+### Open Source & Zero Liability
+
+This project is open-source under the MIT License and includes a specific [AI Disclaimer](DISCLAIMER.md). We believe in transparency and security. By using this package, you maintain full control over your data handling logic.
+
+- **Local Processing**: PII detection and masking happen entirely on your server.
+- **No Data Retention**: This package does not store or log your prompts or AI responses.
+- **Provider Agnostic**: Easily switch to local providers like Ollama for 100% data sovereignty.
+
+### AI Aware Data Handling
+
+The package is "AI Aware", meaning it understands the risks associated with sending data to LLMs. It provides:
+- **Context Management**: Tools to manage conversation history safely.
+- **Structured Output Enforcement**: Ensures AI responses adhere to strict JSON schemas, reducing the risk of "prompt injection" or unexpected data formats in your application.
+- **Smart PII Patterns**: Pre-configured patterns for common sensitive data types, which are processed before the AI ever sees the prompt.
+
 ## Supported Drivers
 
 | Driver | JSON Response | Custom Schema | PII Masking |
@@ -287,4 +333,4 @@ If unmasking is disabled, you can define custom replacement strings for specific
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+The MIT License (MIT). Please see [License File](LICENSE.md) and [Disclaimer](DISCLAIMER.md) for more information.

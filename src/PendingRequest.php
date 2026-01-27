@@ -12,17 +12,28 @@ class PendingRequest
     protected array $messages = [];
     protected array $options = [];
     protected bool $shouldMaskPii = false;
+    protected bool $shouldScrubPii = false;
 
     public function __construct(
         protected Driver $driver,
         protected ?PiiMasker $piiMasker = null
     ) {
-        $this->shouldMaskPii = config('ai.pii_masking.enabled', false);
+        $this->shouldMaskPii = config('ai.pii_masking.enabled', true);
+        $this->shouldScrubPii = config('ai.pii_masking.strict', false);
     }
 
     public function withPiiMasking(bool $enabled = true): self
     {
         $this->shouldMaskPii = $enabled;
+        return $this;
+    }
+
+    public function scrubPii(bool $enabled = true): self
+    {
+        $this->shouldScrubPii = $enabled;
+        if ($enabled) {
+            $this->shouldMaskPii = true;
+        }
         return $this;
     }
 
@@ -102,13 +113,17 @@ class PendingRequest
     {
         if ($this->shouldMaskPii && $this->piiMasker) {
             foreach ($this->messages as $message) {
-                $message->content = $this->piiMasker->mask($message->content);
+                if ($this->shouldScrubPii) {
+                    $message->content = $this->piiMasker->scrub($message->content);
+                } else {
+                    $message->content = $this->piiMasker->mask($message->content);
+                }
             }
         }
 
         $response = $this->driver->chat($this->messages, $this->options);
 
-        if ($this->shouldMaskPii && $this->piiMasker) {
+        if ($this->shouldMaskPii && $this->piiMasker && !$this->shouldScrubPii) {
             $response = $this->piiMasker->unmask($response);
         }
 

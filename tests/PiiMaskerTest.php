@@ -221,4 +221,20 @@ class PiiMaskerTest extends TestCase
         $this->assertStringContainsString("john.doe@example.com", $unmasked);
         $this->assertStringContainsString("123-456-7890", $unmasked);
     }
+
+    /** @test */
+    public function it_can_scrub_data_irreversibly()
+    {
+        $config = require __DIR__ . '/../config/ai.php';
+        $masker = new DefaultPiiMasker($config['pii_masking']);
+        $text = "My email is john.doe@example.com";
+        $scrubbed = $masker->scrub($text);
+        
+        $this->assertStringNotContainsString("john.doe@example.com", $scrubbed);
+        $this->assertStringContainsString("[REDACTED EMAIL]", $scrubbed);
+        
+        // Ensure unmask doesn't bring it back
+        $unmasked = $masker->unmask($scrubbed);
+        $this->assertStringNotContainsString("john.doe@example.com", $unmasked);
+    }
 }

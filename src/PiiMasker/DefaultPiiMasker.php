@@ -51,6 +51,17 @@ class DefaultPiiMasker implements PiiMasker
         return $text;
     }
 
+    public function scrub(string $text): string
+    {
+        foreach ($this->patterns as $type => $pattern) {
+            $text = preg_replace_callback($pattern, function ($matches) use ($type) {
+                return $this->config['replacements'][$type] ?? "[REDACTED " . strtoupper($type) . "]";
+            }, $text);
+        }
+
+        return $text;
+    }
+
     public function extend(array $patterns): self
     {
         $this->patterns = array_merge($this->patterns, $patterns);
