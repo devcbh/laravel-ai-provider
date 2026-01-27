@@ -65,10 +65,20 @@ class PendingRequest
         return $this;
     }
 
-    public function driver(Driver $driver): self
+    public function driver(Driver|PendingRequest $driver): self
     {
-        $this->driver = $driver;
+        if ($driver instanceof PendingRequest) {
+            $this->driver = $driver->getDriver();
+        } else {
+            $this->driver = $driver;
+        }
+
         return $this;
+    }
+
+    public function getDriver(): Driver
+    {
+        return $this->driver;
     }
 
     public function ask(string $prompt): string

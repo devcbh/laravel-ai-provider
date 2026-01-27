@@ -62,7 +62,13 @@ class AiManager extends Manager
             ? $this->container->make(PiiMasker::class) 
             : null;
 
-        return (new PendingRequest(parent::driver($driver), $piiMasker));
+        $instance = parent::driver($driver);
+
+        if ($instance instanceof PendingRequest) {
+            return $instance;
+        }
+
+        return new PendingRequest($instance, $piiMasker);
     }
 
     /**
