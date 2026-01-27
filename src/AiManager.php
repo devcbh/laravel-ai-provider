@@ -48,6 +48,17 @@ class AiManager extends Manager
         return new OllamaDriver($this->config->get('ai.providers.ollama'));
     }
 
+    public function driver($driver = null)
+    {
+        $driver = $driver ?: $this->getDefaultDriver();
+
+        $piiMasker = $this->container->bound(PiiMasker::class) 
+            ? $this->container->make(PiiMasker::class) 
+            : null;
+
+        return (new PendingRequest(parent::driver($driver), $piiMasker));
+    }
+
     /**
      * @param string $method
      * @param array $parameters

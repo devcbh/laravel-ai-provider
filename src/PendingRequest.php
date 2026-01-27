@@ -58,10 +58,38 @@ class PendingRequest
         return $this;
     }
 
+    public function schema(array $schema, string $name = 'response_schema'): self
+    {
+        $this->options['schema'] = $schema;
+        $this->options['schema_name'] = $name;
+        return $this;
+    }
+
+    public function driver(Driver $driver): self
+    {
+        $this->driver = $driver;
+        return $this;
+    }
+
     public function ask(string $prompt): string
     {
         $this->messages[] = Message::user($prompt);
 
+        return $this->executeChat();
+    }
+
+    public function asJson(string $prompt): array
+    {
+        $this->options['response_format'] = 'json';
+        $this->messages[] = Message::user($prompt);
+
+        $response = $this->executeChat();
+
+        return json_decode($response, true) ?? [];
+    }
+
+    protected function executeChat(): string
+    {
         if ($this->shouldMaskPii && $this->piiMasker) {
             foreach ($this->messages as $message) {
                 $message->content = $this->piiMasker->mask($message->content);

@@ -12,14 +12,20 @@ class OllamaDriver implements Driver
 
     public function chat(array $messages, array $options = []): string
     {
-        $response = Http::post(($this->config['base_url'] ?? 'http://localhost:11434') . '/api/chat', [
+        $payload = [
             'model' => $options['model'] ?? $this->config['model'] ?? 'llama3',
             'messages' => array_map(fn($m) => $m->toArray(), $messages),
             'options' => [
                 'temperature' => $options['temperature'] ?? $this->config['temperature'] ?? 0.7,
             ],
             'stream' => false,
-        ]);
+        ];
+
+        if (($options['response_format'] ?? null) === 'json') {
+            $payload['format'] = $options['schema'] ?? 'json';
+        }
+
+        $response = Http::post(($this->config['base_url'] ?? 'http://localhost:11434') . '/api/chat', $payload);
 
         if ($response->failed()) {
             throw new Exception("Ollama API Error: " . $response->body());

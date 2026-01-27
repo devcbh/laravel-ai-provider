@@ -38,6 +38,14 @@ class GeminiDriver implements Driver
             ]
         ];
 
+        if (($options['response_format'] ?? null) === 'json') {
+            $payload['generationConfig']['response_mime_type'] = 'application/json';
+
+            if (isset($options['schema'])) {
+                $payload['generationConfig']['response_schema'] = $options['schema'];
+            }
+        }
+
         if ($systemInstructions) {
             $payload['system_instruction'] = [
                 'parts' => [['text' => $systemInstructions]]

@@ -40,10 +40,54 @@ use Devcbh\LaravelAiProvider\Facades\Ai;
 $response = Ai::ask('What is the capital of France?');
 ```
 
+### JSON Response
+
+You can get the AI response as a modifiable JSON object (PHP array). This is useful for structured data.
+
+```php
+$data = Ai::asJson('Return a list of 3 fruits in JSON format with "name" and "color" keys.');
+
+// Returns: ['fruits' => [['name' => 'Apple', 'color' => 'Red'], ...]]
+```
+
+### Structured Output with Schema
+
+You can define a custom JSON schema for the AI response. **Currently supported by OpenAI, Gemini, Mistral, Ollama and Claude drivers.**
+
+```php
+$schema = [
+    'type' => 'object',
+    'properties' => [
+        'name' => ['type' => 'string'],
+        'age' => ['type' => 'integer'],
+        'hobbies' => [
+            'type' => 'array',
+            'items' => ['type' => 'string']
+        ]
+    ],
+    'required' => ['name', 'age', 'hobbies']
+];
+
+// Basic usage (default name: 'response_schema')
+$data = Ai::schema($schema)->asJson('Tell me about a person named John.');
+
+// With custom schema name (used by OpenAI and Mistral for strict mode)
+$data = Ai::schema($schema, 'person_info')->asJson('Tell me about a person named John.');
+
+// Returns: ['name' => 'John', 'age' => 30, 'hobbies' => ['Reading', 'Cycling']]
+```
+
 ### Using a Specific Driver
+
+You can switch drivers fluently:
 
 ```php
 $response = Ai::driver('gemini')->ask('Hello Gemini!');
+
+// You can also chain other methods
+$data = Ai::driver('mistral')
+    ->schema($schema)
+    ->asJson('Extract information.');
 ```
 
 ### Fluent Configuration
@@ -233,11 +277,13 @@ If unmasking is disabled, you can define custom replacement strings for specific
 
 ## Supported Drivers
 
-- `openai`
-- `gemini` (Google)
-- `claude` or `anthropic`
-- `mistral`
-- `ollama` (Local AI)
+| Driver | JSON Response | Custom Schema | PII Masking |
+| :--- | :---: | :---: | :---: |
+| `openai` | ✅ | ✅ | ✅ |
+| `gemini` | ✅ | ✅ | ✅ |
+| `claude` | ✅ | ✅ | ✅ |
+| `mistral` | ✅ | ✅ | ✅ |
+| `ollama` | ✅ | ✅ | ✅ |
 
 ## License
 
