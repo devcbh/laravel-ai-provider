@@ -21,13 +21,13 @@ php artisan vendor:publish --tag="ai-config"
 Add your API keys to your `.env` file:
 
 ```env
-AI_DRIVER=openai
+LARAVEL_AURA_AI_DRIVER=openai
 
-OPENAI_API_KEY=your-api-key
-GEMINI_API_KEY=your-api-key
-CLAUDE_API_KEY=your-api-key
-MISTRAL_API_KEY=your-api-key
-OLLAMA_BASE_URL=http://localhost:11434
+LARAVEL_AURA_OPENAI_API_KEY=your-api-key
+LARAVEL_AURA_GEMINI_API_KEY=your-api-key
+LARAVEL_AURA_CLAUDE_API_KEY=your-api-key
+LARAVEL_AURA_MISTRAL_API_KEY=your-api-key
+LARAVEL_AURA_OLLAMA_BASE_URL=http://localhost:11434
 ```
 
 ## Usage
@@ -170,6 +170,65 @@ $template = new CustomTemplate(
     fn() => 'System role logic here',
     fn($data) => "User prompt with " . count($data) . " items."
 );
+```
+
+### PII Masking
+
+The package provides built-in PII (Personally Identifiable Information) masking to ensure sensitive data is not sent to AI providers.
+
+#### Basic Usage
+
+You can enable PII masking per request:
+
+```php
+$response = Ai::withPiiMasking()->ask('My email is john.doe@example.com');
+```
+
+Or enable it globally in `config/ai.php`:
+
+```php
+'pii_masking' => [
+    'enabled' => true,
+    // ...
+],
+```
+
+#### Customizing Patterns
+
+The package comes with several default patterns (email, phone, ssn, ipv4, ipv6, mac_address, iban, jwt, aws_access_key, aws_secret_key, api_key, passport_number, credit_card, private_key). You can modify these or add your own in `config/ai.php`:
+
+```php
+'pii_masking' => [
+    'patterns' => [
+        'order_id' => '/ORD-\d{5}/',
+    ],
+],
+```
+
+Or dynamically at runtime:
+
+```php
+use Devcbh\LaravelAiProvider\Contracts\PiiMasker;
+
+app(PiiMasker::class)->extend([
+    'custom_id' => '/ID-[A-Z]{3}-\d{4}/',
+]);
+```
+
+#### Custom Replacements
+
+If unmasking is disabled, you can define custom replacement strings for specific PII types in `config/ai.php`:
+
+```php
+'pii_masking' => [
+    'unmasking' => [
+        'enabled' => false,
+    ],
+    'replacements' => [
+        'email' => '[REDACTED EMAIL]',
+        'phone' => '[REDACTED PHONE]',
+    ],
+],
 ```
 
 ## Supported Drivers

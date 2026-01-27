@@ -4,14 +4,27 @@ namespace Devcbh\LaravelAiProvider;
 
 use Devcbh\LaravelAiProvider\Contracts\Driver;
 use Devcbh\LaravelAiProvider\Contracts\Template;
+use Devcbh\LaravelAiProvider\Contracts\PiiMasker;
 use Devcbh\LaravelAiProvider\DTOs\Message;
 
 class PendingRequest
 {
     protected array $messages = [];
     protected array $options = [];
+    protected bool $shouldMaskPii = false;
 
-    public function __construct(protected Driver $driver) {}
+    public function __construct(
+        protected Driver $driver,
+        protected ?PiiMasker $piiMasker = null
+    ) {
+        $this->shouldMaskPii = config('ai.pii_masking.enabled', false);
+    }
+
+    public function withPiiMasking(bool $enabled = true): self
+    {
+        $this->shouldMaskPii = $enabled;
+        return $this;
+    }
 
     public function role(string $message): self
     {
@@ -48,6 +61,19 @@ class PendingRequest
     public function ask(string $prompt): string
     {
         $this->messages[] = Message::user($prompt);
-        return $this->driver->chat($this->messages, $this->options);
+
+        if ($this->shouldMaskPii && $this->piiMasker) {
+            foreach ($this->messages as $message) {
+                $message->content = $this->piiMasker->mask($message->content);
+            }
+        }
+
+        $response = $this->driver->chat($this->messages, $this->options);
+
+        if ($this->shouldMaskPii && $this->piiMasker) {
+            $response = $this->piiMasker->unmask($response);
+        }
+
+        return $response;
     }
 }

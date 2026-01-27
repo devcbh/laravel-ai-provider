@@ -8,6 +8,7 @@ use Devcbh\LaravelAiProvider\Drivers\GeminiDriver;
 use Devcbh\LaravelAiProvider\Drivers\ClaudeDriver;
 use Devcbh\LaravelAiProvider\Drivers\MistralDriver;
 use Devcbh\LaravelAiProvider\Drivers\OllamaDriver;
+use Devcbh\LaravelAiProvider\Contracts\PiiMasker;
 use InvalidArgumentException;
 
 class AiManager extends Manager
@@ -54,6 +55,10 @@ class AiManager extends Manager
      */
     public function __call($method, $parameters)
     {
-        return (new PendingRequest($this->driver()))->$method(...$parameters);
+        $piiMasker = $this->container->bound(PiiMasker::class) 
+            ? $this->container->make(PiiMasker::class) 
+            : null;
+
+        return (new PendingRequest($this->driver(), $piiMasker))->$method(...$parameters);
     }
 }
