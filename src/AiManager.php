@@ -48,6 +48,12 @@ class AiManager extends Manager
         return new OllamaDriver($this->config->get('ai.providers.ollama'));
     }
 
+    /**
+     * Get a driver instance.
+     *
+     * @param  string|null  $driver
+     * @return \Devcbh\LaravelAiProvider\PendingRequest
+     */
     public function driver($driver = null)
     {
         $driver = $driver ?: $this->getDefaultDriver();
@@ -60,16 +66,14 @@ class AiManager extends Manager
     }
 
     /**
-     * @param string $method
-     * @param array $parameters
+     * Dynamically call the default driver instance.
+     *
+     * @param  string  $method
+     * @param  array  $parameters
      * @return mixed
      */
     public function __call($method, $parameters)
     {
-        $piiMasker = $this->container->bound(PiiMasker::class) 
-            ? $this->container->make(PiiMasker::class) 
-            : null;
-
-        return (new PendingRequest($this->driver(), $piiMasker))->$method(...$parameters);
+        return $this->driver()->$method(...$parameters);
     }
 }
