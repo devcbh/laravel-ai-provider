@@ -1,28 +1,51 @@
 # Laravel AI Provider
 
-A simple and intuitive Laravel wrapper for multiple AI providers (OpenAI, Gemini, Claude/Anthropic, Mistral, Ollama).
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/devcbh/laravel-ai-provider.svg?style=flat-square)](https://packagist.org/packages/devcbh/laravel-ai-provider)
+[![Total Downloads](https://img.shields.io/packagist/dt/devcbh/laravel-ai-provider.svg?style=flat-square)](https://packagist.org/packages/devcbh/laravel-ai-provider)
+[![License](https://img.shields.io/packagist/l/devcbh/laravel-ai-provider.svg?style=flat-square)](https://packagist.org/packages/devcbh/laravel-ai-provider)
 
-## Installation
+A powerful, secure, and intuitive Laravel wrapper for multiple AI providers. Switch between OpenAI, Anthropic (Claude), Google (Gemini), Mistral, and Ollama with a single, fluent API.
 
-You can install the package via composer:
+---
+
+## 🚀 Key Features
+
+- **Multi-Provider Support**: unified API for OpenAI, Gemini, Claude, Mistral, and Ollama.
+- **Privacy First (PII Masking)**: Automatically detect and mask sensitive data before it leaves your server.
+- **Zero Liability Design**: Built-in tools for reversible masking or irreversible redaction.
+- **Fluent & Expressive API**: Chain methods for configuration, role-setting, and driver switching.
+- **Structured Output**: Enforce JSON schemas across all supported drivers.
+- **Smart Failover**: Automatic provider fallback if your primary AI service is down.
+- **Parallel Requests**: Handle multiple AI calls concurrently using Laravel's HTTP pool.
+- **Prompt Templates**: Reusable templates for common tasks like Sentiment Analysis, Summarization, and more.
+- **Streaming**: Real-time response streaming for chat interfaces.
+- **Tool/Function Calling**: Easily bridge AI with your PHP logic.
+
+---
+
+## 📦 Installation
+
+Install the package via composer:
 
 ```bash
 composer require devcbh/laravel-ai-provider
 ```
 
-You can publish the config file with:
+Publish the configuration file:
 
 ```bash
 php artisan vendor:publish --tag="ai-config"
 ```
 
-## Configuration
+## ⚙️ Configuration
 
 Add your API keys to your `.env` file:
 
 ```env
+# Default driver: openai, gemini, claude, mistral, ollama
 LARAVEL_AURA_AI_DRIVER=openai
 
+# Provider Keys
 LARAVEL_AURA_OPENAI_API_KEY=your-api-key
 LARAVEL_AURA_GEMINI_API_KEY=your-api-key
 LARAVEL_AURA_CLAUDE_API_KEY=your-api-key
@@ -30,7 +53,9 @@ LARAVEL_AURA_MISTRAL_API_KEY=your-api-key
 LARAVEL_AURA_OLLAMA_BASE_URL=http://localhost:11434
 ```
 
-## Usage
+---
+
+## 🛠 Usage
 
 ### Simple Question
 
@@ -38,11 +63,12 @@ LARAVEL_AURA_OLLAMA_BASE_URL=http://localhost:11434
 use Devcbh\LaravelAiProvider\Facades\Ai;
 
 $response = Ai::ask('What is the capital of France?');
+// Output: "The capital of France is Paris."
 ```
 
 ### JSON Response
 
-You can get the AI response as a modifiable JSON object (PHP array). This is useful for structured data.
+Get structured data as a PHP array:
 
 ```php
 $data = Ai::asJson('Return a list of 3 fruits in JSON format with "name" and "color" keys.');
@@ -52,7 +78,7 @@ $data = Ai::asJson('Return a list of 3 fruits in JSON format with "name" and "co
 
 ### Structured Output with Schema
 
-You can define a custom JSON schema for the AI response. **Currently supported by OpenAI, Gemini, Mistral, Ollama and Claude drivers.**
+Define a JSON schema to ensure the AI responds exactly how you expect.
 
 ```php
 $schema = [
@@ -68,353 +94,159 @@ $schema = [
     'required' => ['name', 'age', 'hobbies']
 ];
 
-// Basic usage (default name: 'response_schema')
-$data = Ai::schema($schema)->asJson('Tell me about a person named John.');
-
-// With custom schema name (used by OpenAI and Mistral for strict mode)
-$data = Ai::schema($schema, 'person_info')->asJson('Tell me about a person named John.');
+$data = Ai::schema($schema, 'person_info')
+    ->asJson('Tell me about a person named John.');
 
 // Returns: ['name' => 'John', 'age' => 30, 'hobbies' => ['Reading', 'Cycling']]
 ```
 
-### Asynchronous Requests
+### Asynchronous (Parallel) Requests
 
-Handle multiple AI requests in parallel using Laravel's HTTP pool.
+Execute multiple AI requests simultaneously to improve performance.
 
 ```php
-use Devcbh\LaravelAiProvider\Facades\Ai;
-
+// Simple parallel requests
 $responses = Ai::async()->ask([
     'weather' => 'What is the weather in Tokyo?',
     'news' => 'What are the top news in Japan today?',
 ]);
 
-echo $responses['weather'];
-echo $responses['news'];
-
-// Or fluently with different drivers
+// Fluent parallel requests with different drivers
 $responses = Ai::async()
-    ->add('gpt', Ai::driver('openai')->model('gpt-4'))
-    ->add('claude', Ai::driver('claude'))
+    ->add('gpt', Ai::driver('openai')->model('gpt-4o'))
+    ->add('claude', Ai::driver('claude')->model('claude-3-5-sonnet-latest'))
     ->execute();
 ```
 
-### Global Failover (Provider Fallbacks)
+---
 
-Define a "failover" chain. If the primary provider fails, it will automatically try the next one in the list.
+## 🛡 Security & Privacy (Zero Liability)
 
-You can configure this globally in `config/ai.php`:
+This package is designed for high-security environments where data privacy is paramount.
+
+### PII Masking & Redaction
+
+Automatically detect and mask sensitive information (emails, credit cards, API keys, etc.) before sending data to providers.
 
 ```php
-'fallbacks' => ['gemini', 'claude'],
+// Reversible Masking (Default)
+// Masks "john@example.com" -> "[EMAIL_1]" before sending, 
+// then restores it when the AI responds.
+$response = Ai::withPiiMasking()->ask('Tell my friend john@example.com hello.');
+
+// Irreversible Redaction (Strict Mode)
+// Permanently replaces PII with [REDACTED] - cannot be undone.
+$response = Ai::scrubPii()->ask('My secret key is sk_12345');
 ```
 
-Or fluently per request:
+Enable globally in `config/ai.php`:
 
 ```php
-$response = Ai::fallback(['gemini', 'ollama'])->ask('Hello!');
+'pii_masking' => [
+    'enabled' => true,
+    'strict' => false, // Set to true for irreversible redaction
+],
+```
+
+---
+
+## 🧩 Prompt Templates
+
+Templates provide a clean way to handle complex prompts.
+
+```php
+use Devcbh\LaravelAiProvider\Templates\SentimentTemplate;
+
+$result = Ai::template(new SentimentTemplate(), [
+    'text' => 'I absolutely love this new Laravel package!'
+])->asJson();
+
+// Returns: ['sentiment' => 'Positive', 'score' => 0.9]
+```
+
+### Available Templates
+
+| Template | Purpose | Key Data Keys |
+| :--- | :--- | :--- |
+| `SentimentTemplate` | Analyze text sentiment | `text` |
+| `SummarizationTemplate` | Summarize long content | `content`, `max_length` |
+| `TranslationTemplate` | Multi-language translation | `text`, `target_language` |
+| `CodeReviewTemplate` | Review code snippets | `code`, `language` |
+| `PredictionTemplate` | Data sequence prediction | `data`, `target` |
+| `FraudDetectionTemplate` | Identify suspicious patterns | `data` |
+| `SeoOptimizerTemplate` | Generate SEO assets | `content`, `keywords` |
+| ... and many more. | See `src/Templates` | |
+
+---
+
+## 🔄 Advanced Features
+
+### Global Failover (Fallbacks)
+
+Ensure your application stays up even if an AI provider goes down.
+
+```php
+// Fluent fallback
+$response = Ai::fallback(['gemini', 'ollama'])
+    ->ask('Write a haiku about servers.');
 ```
 
 ### Streaming Support
 
-Add a `stream()` method to allow real-time UI updates (essential for chat applications).
+Stream responses in real-time for chat applications.
 
 ```php
 $stream = Ai::stream('Write a long story about a space cat.');
 
 foreach ($stream as $chunk) {
     echo $chunk;
-    // ob_flush(); flush(); // For browser streaming
+    flush(); 
 }
 ```
 
 ### Function Calling (Tools)
 
-Allow AI to call PHP methods to fetch real-time data or perform actions. You can pass a full JSON definition or just a PHP callable.
+Allow AI to interact with your local PHP methods.
 
 ```php
-// Using a PHP callable (Recommended)
 Ai::withTools([[$orderService, 'getDetails']])
   ->ask("Where is my order #123?");
-
-// Or using manual JSON definition
-$tools = [
-    [
-        'type' => 'function',
-        'function' => [
-            'name' => 'get_weather',
-            'description' => 'Get the current weather in a given location',
-            'parameters' => [
-                'type' => 'object',
-                'properties' => [
-                    'location' => [
-                        'type' => 'string',
-                        'description' => 'The city and state, e.g. San Francisco, CA',
-                    ],
-                ],
-                'required' => ['location'],
-            ],
-        ],
-    ]
-];
-
-$response = Ai::withTools($tools)->ask('What is the weather in Tokyo?');
 ```
 
-### Using a Specific Driver
+---
 
-You can switch drivers fluently:
-
-```php
-$response = Ai::driver('gemini')->ask('Hello Gemini!');
-
-// You can also chain other methods
-$data = Ai::driver('mistral')
-    ->schema($schema)
-    ->asJson('Extract information.');
-```
-
-### Fluent Configuration
-
-```php
-$response = Ai::model('gpt-4')
-    ->temperature(0.9)
-    ->role('You are a helpful assistant.')
-    ->ask('Tell me a joke.');
-```
-
-### With Context (Last Messages)
-
-```php
-use Devcbh\LaravelAiProvider\DTOs\Message;
-
-$response = Ai::lastContext([
-    Message::user('My name is Junie.'),
-    Message::assistant('Hello Junie! How can I help you today?'),
-])->ask('What is my name?');
-```
-
-### Using Templates
-
-Templates allow you to use predefined prompts for common tasks.
-
-```php
-use Devcbh\LaravelAiProvider\Facades\Ai;
-use Devcbh\LaravelAiProvider\Templates\PredictionTemplate;
-
-$response = Ai::template(new PredictionTemplate(), [
-    'data' => [10, 20, 30, 40],
-    'target' => 'the next number in the sequence'
-])->ask('Analyze and predict.');
-```
-
-#### Available Templates
-
-Below is a list of available templates and the data they expect:
-
-1.  **`PredictionTemplate`**: For data predictions.
-    *   `data`: (array) Historical data points.
-    *   `target`: (string) What to predict (e.g., "next month sales").
-2.  **`GrowthTemplate`**: For growth strategies and metrics analysis.
-    *   `metrics`: (array) Current growth metrics.
-    *   `period`: (string) Timeframe (e.g., "Q4 2023").
-3.  **`AnalyticsTemplate`**: For deep-dive data analysis and insights.
-    *   `data`: (array) Raw data for analysis.
-    *   `context`: (string) Context of the data (e.g., "user behavior").
-4.  **`SentimentTemplate`**: For analyzing text sentiment.
-    *   `text`: (string) The text to analyze.
-5.  **`SummarizationTemplate`**: For content summarization.
-    *   `content`: (string) The content to summarize.
-    *   `max_length`: (string) Desired length (e.g., "3 paragraphs").
-6.  **`TranslationTemplate`**: For multi-language translation.
-    *   `text`: (string) The text to translate.
-    *   `target_language`: (string) The language to translate into.
-7.  **`CodeReviewTemplate`**: For reviewing code snippets.
-    *   `code`: (string) The code snippet.
-    *   `language`: (string) Programming language (e.g., "PHP").
-8.  **`KeywordExtractionTemplate`**: For extracting SEO keywords.
-    *   `text`: (string) The text to process.
-    *   `limit`: (int) Maximum number of keywords to extract.
-9.  **`RecommendationTemplate`**: For personalized recommendations.
-    *   `preferences`: (array) User preferences or history.
-    *   `options`: (array) Available items to recommend from.
-10. **`FraudDetectionTemplate`**: For identifying suspicious patterns.
-    *   `data`: (array) Transaction or activity data.
-
-### Creating Your Own Templates
-
-You can create custom templates in two ways:
-
-#### 1. implementing the `Template` Interface
-
-Create a class that implements `Devcbh\LaravelAiProvider\Contracts\Template`:
-
-```php
-namespace App\AiTemplates;
-
-use Devcbh\LaravelAiProvider\Contracts\Template;
-
-class MyCustomTemplate implements Template
-{
-    public function systemPrompt(): string
-    {
-        return "You are a helpful assistant that speaks like a pirate.";
-    }
-
-    public function userPrompt(array $data): string
-    {
-        return "Tell me about {$data['subject']}.";
-    }
-}
-```
-
-Usage:
-```php
-Ai::template(new MyCustomTemplate(), ['subject' => 'the ocean'])->ask('Go!');
-```
-
-#### 2. Using the `CustomTemplate` Class
-
-For quick, dynamic templates, use the `CustomTemplate` class:
-
-```php
-use Devcbh\LaravelAiProvider\Templates\CustomTemplate;
-
-$template = new CustomTemplate(
-    'You are a math tutor.',
-    'Explain the concept of {concept} to a {level} level student.'
-);
-
-$response = Ai::template($template, [
-    'concept' => 'calculus',
-    'level' => 'beginner'
-])->ask('Start explaining.');
-```
-
-You can also use closures for more complex logic:
-
-```php
-$template = new CustomTemplate(
-    fn() => 'System role logic here',
-    fn($data) => "User prompt with " . count($data) . " items."
-);
-```
-
-### PII Masking
-
-The package provides built-in PII (Personally Identifiable Information) masking to ensure sensitive data is not sent to AI providers.
-
-#### Basic Usage
-
-You can enable PII masking per request:
-
-```php
-$response = Ai::withPiiMasking()->ask('My email is john.doe@example.com');
-```
-
-Or enable it globally in `config/ai.php`:
-
-```php
-'pii_masking' => [
-    'enabled' => true,
-    // ...
-],
-```
-
-#### Customizing Patterns
-
-The package comes with several default patterns (email, phone, ssn, ipv4, ipv6, mac_address, iban, jwt, aws_access_key, aws_secret_key, api_key, passport_number, credit_card, private_key). You can modify these or add your own in `config/ai.php`:
-
-```php
-'pii_masking' => [
-    'patterns' => [
-        'order_id' => '/ORD-\d{5}/',
-    ],
-],
-```
-
-Or dynamically at runtime:
-
-```php
-use Devcbh\LaravelAiProvider\Contracts\PiiMasker;
-
-app(PiiMasker::class)->extend([
-    'custom_id' => '/ID-[A-Z]{3}-\d{4}/',
-]);
-```
-
-#### Custom Replacements
-
-If unmasking is disabled, you can define custom replacement strings for specific PII types in `config/ai.php`:
-
-```php
-'pii_masking' => [
-    'unmasking' => [
-        'enabled' => false,
-    ],
-    'replacements' => [
-        'email' => '[REDACTED EMAIL]',
-        'phone' => '[REDACTED PHONE]',
-    ],
-],
-```
-
-## Zero Liability & AI Data Handling
-
-This package is designed with a **Zero Liability** philosophy. We provide tools to ensure that sensitive data never leaves your infrastructure and that your AI interactions are secure and compliant.
-
-### PII Masking & Redaction
-
-By default, PII masking is enabled. This automatically detects and masks sensitive information (like emails, credit cards, API keys) before sending them to any AI provider.
-
-```php
-// Automatically masks PII and unmasks it in the response
-$response = Ai::ask('My email is john@example.com');
-```
-
-#### Strict Mode (Irreversible Redaction)
-
-For maximum security, you can enable **Strict Mode**. This irrevertibly redacts (scrubs) PII from your prompts, ensuring that even if the AI provider logs the data, no sensitive information is present.
-
-```php
-// Irreversibly scrubs PII from the prompt
-$response = Ai::scrubPii()->ask('My secret key is sk_1234567890');
-```
-
-You can also enable this globally in `config/ai.php`:
-
-```php
-'pii_masking' => [
-    'enabled' => true,
-    'strict' => true, // Enforce irreversible redaction
-],
-```
-
-### Open Source & Zero Liability
-
-This project is open-source under the MIT License and includes a specific [AI Disclaimer](DISCLAIMER.md). We believe in transparency and security. By using this package, you maintain full control over your data handling logic.
-
-- **Local Processing**: PII detection and masking happen entirely on your server.
-- **No Data Retention**: This package does not store or log your prompts or AI responses.
-- **Provider Agnostic**: Easily switch to local providers like Ollama for 100% data sovereignty.
-
-### AI Aware Data Handling
-
-The package is "AI Aware", meaning it understands the risks associated with sending data to LLMs. It provides:
-- **Context Management**: Tools to manage conversation history safely.
-- **Structured Output Enforcement**: Ensures AI responses adhere to strict JSON schemas, reducing the risk of "prompt injection" or unexpected data formats in your application.
-- **Smart PII Patterns**: Pre-configured patterns for common sensitive data types, which are processed before the AI ever sees the prompt.
-
-## Supported Drivers
+## 🔌 Supported Drivers
 
 | Driver | JSON Response | Custom Schema | PII Masking | Streaming | Tools |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| `openai` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `gemini` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `claude` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `mistral` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ollama` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **OpenAI** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Gemini** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Claude** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Mistral** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Ollama** | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-## License
+---
 
-The MIT License (MIT). Please see [License File](LICENSE.md) and [Disclaimer](DISCLAIMER.md) for more information.
+## 🧪 Testing
+
+Since the package uses Laravel's `Http` client, you can use `Http::fake()` to mock AI responses in your tests:
+
+```php
+use Illuminate\Support\Facades\Http;
+use Devcbh\LaravelAiProvider\Facades\Ai;
+
+Http::fake([
+    '*' => Http::response(['choices' => [['message' => ['content' => 'Mocked response']]]], 200),
+]);
+
+$response = Ai::ask('Hello?');
+$this->assertEquals('Mocked response', $response);
+```
+
+---
+
+## 📄 License & Disclaimer
+
+- **License**: MIT License. See [LICENSE.md](LICENSE.md).
+- **Disclaimer**: AI models can hallucinate. Please read our [AI Disclaimer](DISCLAIMER.md) before use.
+- **Privacy**: PII detection happens entirely on your server. No data is stored or logged by this package.

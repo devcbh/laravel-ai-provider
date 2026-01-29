@@ -80,9 +80,9 @@ class PendingRequest
 
     public function withTools(array $tools): self
     {
-        foreach ($tools as $tool) {
+        foreach ($tools as $key => $tool) {
             if (is_callable($tool)) {
-                $tool = $this->resolveToolFromCallable($tool);
+                $tool = $this->resolveToolFromCallable($tool, is_string($key) ? $key : null);
             }
 
             $this->tools[$tool['function']['name']] = $tool;
@@ -92,7 +92,7 @@ class PendingRequest
         return $this;
     }
 
-    protected function resolveToolFromCallable(callable $callable): array
+    protected function resolveToolFromCallable(callable $callable, ?string $name = null): array
     {
         if (is_array($callable)) {
             $reflection = new \ReflectionMethod($callable[0], $callable[1]);
@@ -100,7 +100,7 @@ class PendingRequest
             $reflection = new \ReflectionFunction($callable);
         }
 
-        $name = $reflection->getName();
+        $name = $name ?: $reflection->getName();
         $description = $this->parseDescription($reflection->getDocComment() ?: '');
 
         $parameters = [
@@ -243,7 +243,8 @@ class PendingRequest
 
         foreach ($drivers as $driver) {
             try {
-                return $driver->chat($this->messages, $this->options);
+                $response = $driver->chat($this->messages, $this->options);
+                return $this->unmaskResponse($response);
             } catch (\Exception $e) {
                 $lastException = $e;
                 continue;
@@ -251,6 +252,15 @@ class PendingRequest
         }
 
         throw $lastException ?: new \Exception("All drivers failed.");
+    }
+
+    protected function unmaskResponse(string $response): string
+    {
+        if ($this->shouldMaskPii && !$this->shouldScrubPii && $this->piiMasker) {
+            return $this->piiMasker->unmask($response);
+        }
+
+        return $response;
     }
 
     protected function executeStream(): iterable
