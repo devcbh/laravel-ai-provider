@@ -9,6 +9,7 @@ use Devcbh\LaravelAiProvider\Drivers\ClaudeDriver;
 use Devcbh\LaravelAiProvider\Drivers\MistralDriver;
 use Devcbh\LaravelAiProvider\Drivers\OllamaDriver;
 use Devcbh\LaravelAiProvider\Contracts\PiiMasker;
+use Devcbh\LaravelAiProvider\AsyncPendingRequest;
 use InvalidArgumentException;
 
 class AiManager extends Manager
@@ -68,7 +69,29 @@ class AiManager extends Manager
             return $instance;
         }
 
-        return new PendingRequest($instance, $piiMasker);
+        $request = new PendingRequest($instance, $piiMasker);
+
+        $fallbacks = $this->config->get("ai.providers.{$driver}.fallbacks") 
+            ?? $this->config->get("ai.fallbacks") 
+            ?? [];
+
+        if (!empty($fallbacks)) {
+            $request->fallback($fallbacks);
+        }
+
+        $request->setDriverName($driver);
+
+        return $request;
+    }
+
+    /**
+     * Create a new async request instance.
+     *
+     * @return \Devcbh\LaravelAiProvider\AsyncPendingRequest
+     */
+    public function async()
+    {
+        return new AsyncPendingRequest($this);
     }
 
     /**

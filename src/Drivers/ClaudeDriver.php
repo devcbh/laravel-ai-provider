@@ -12,6 +12,68 @@ class ClaudeDriver implements Driver
 
     public function chat(array $messages, array $options = []): string
     {
+        $request = $this->prepareRequest($messages, $options);
+
+        $response = Http::withHeaders($request['headers'])
+            ->post($request['url'], $request['payload']);
+
+        if ($response->failed()) {
+            throw new Exception("Claude API Error: " . $response->body());
+        }
+
+        return $this->parseResponse($response);
+    }
+
+    public function prepareRequest(array $messages, array $options = []): array
+    {
+        [$payload, $headers] = $this->preparePayload($messages, $options);
+
+        return [
+            'method' => 'POST',
+            'url' => ($this->config['base_url'] ?? 'https://api.anthropic.com/v1') . '/messages',
+            'payload' => $payload,
+            'headers' => $headers,
+        ];
+    }
+
+    public function parseResponse(mixed $response): string
+    {
+        if ($response instanceof \Illuminate\Http\Client\Response) {
+            return $response->json('content.0.text') ?? '';
+        }
+
+        return $response['content'][0]['text'] ?? '';
+    }
+
+    public function stream(array $messages, array $options = []): iterable
+    {
+        [$payload, $headers] = $this->preparePayload($messages, $options);
+        $payload['stream'] = true;
+
+        $response = Http::withHeaders($headers)
+            ->withOptions(['stream' => true])
+            ->post(($this->config['base_url'] ?? 'https://api.anthropic.com/v1') . '/messages', $payload);
+
+        if ($response->failed()) {
+            throw new Exception("Claude API Error: " . $response->body());
+        }
+
+        $body = $response->toPsrResponse()->getBody();
+
+        while (!$body->eof()) {
+            $line = $this->readLine($body);
+            if (str_starts_with($line, 'data: ')) {
+                $data = substr($line, 6);
+                $json = json_decode($data, true);
+                if (isset($json['type']) && $json['type'] === 'content_block_delta') {
+                    yield $json['delta']['text'] ?? '';
+                }
+            }
+        }
+    }
+
+    protected function preparePayload(array $messages, array $options): array
+    {
         $system = '';
         $chatMessages = [];
 
@@ -45,13 +107,29 @@ class ClaudeDriver implements Driver
             $headers['anthropic-beta'] = 'structured-outputs-2025-11-13';
         }
 
-        $response = Http::withHeaders($headers)
-            ->post(($this->config['base_url'] ?? 'https://api.anthropic.com/v1') . '/messages', $payload);
-
-        if ($response->failed()) {
-            throw new Exception("Claude API Error: " . $response->body());
+        if (isset($options['tools'])) {
+            $payload['tools'] = array_map(function ($tool) {
+                return [
+                    'name' => $tool['function']['name'],
+                    'description' => $tool['function']['description'],
+                    'input_schema' => $tool['function']['parameters'],
+                ];
+            }, $options['tools']);
         }
 
-        return $response->json('content.0.text');
+        return [$payload, $headers];
+    }
+
+    protected function readLine($stream): string
+    {
+        $line = '';
+        while (!$stream->eof()) {
+            $char = $stream->read(1);
+            if ($char === "\n") {
+                break;
+            }
+            $line .= $char;
+        }
+        return trim($line);
     }
 }

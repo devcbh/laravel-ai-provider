@@ -10,10 +10,12 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Devcbh\LaravelAiProvider\PendingRequest lastContext(array $messages)
  * @method static \Devcbh\LaravelAiProvider\PendingRequest model(string $model)
  * @method static \Devcbh\LaravelAiProvider\PendingRequest temperature(float $temperature)
+ * @method static \Devcbh\LaravelAiProvider\PendingRequest withTools(array $tools)
  * @method static \Devcbh\LaravelAiProvider\PendingRequest schema(array $schema, string $name = 'response_schema')
  * @method static string ask(string $prompt)
  * @method static array asJson(string $prompt)
  * @method static \Devcbh\LaravelAiProvider\Contracts\Driver driver(string|null $driver = null)
+ * @method static \Devcbh\LaravelAiProvider\AsyncPendingRequest async()
  */
 class Ai extends Facade
 {

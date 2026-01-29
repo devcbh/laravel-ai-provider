@@ -13,6 +13,9 @@ class PendingRequest
     protected array $options = [];
     protected bool $shouldMaskPii = false;
     protected bool $shouldScrubPii = false;
+    protected array $fallbacks = [];
+    protected array $tools = [];
+    protected ?string $driverName = null;
 
     public function __construct(
         protected Driver $driver,
@@ -69,6 +72,94 @@ class PendingRequest
         return $this;
     }
 
+    public function fallback(array $drivers): self
+    {
+        $this->fallbacks = $drivers;
+        return $this;
+    }
+
+    public function withTools(array $tools): self
+    {
+        foreach ($tools as $tool) {
+            if (is_callable($tool)) {
+                $tool = $this->resolveToolFromCallable($tool);
+            }
+
+            $this->tools[$tool['function']['name']] = $tool;
+        }
+
+        $this->options['tools'] = array_values($this->tools);
+        return $this;
+    }
+
+    protected function resolveToolFromCallable(callable $callable): array
+    {
+        if (is_array($callable)) {
+            $reflection = new \ReflectionMethod($callable[0], $callable[1]);
+        } else {
+            $reflection = new \ReflectionFunction($callable);
+        }
+
+        $name = $reflection->getName();
+        $description = $this->parseDescription($reflection->getDocComment() ?: '');
+
+        $parameters = [
+            'type' => 'object',
+            'properties' => [],
+            'required' => [],
+        ];
+
+        foreach ($reflection->getParameters() as $parameter) {
+            $paramName = $parameter->getName();
+            $type = $parameter->getType();
+            $paramType = 'string';
+
+            if ($type instanceof \ReflectionNamedType) {
+                $paramType = match ($type->getName()) {
+                    'int' => 'integer',
+                    'float' => 'number',
+                    'bool' => 'boolean',
+                    'array' => 'array',
+                    default => 'string',
+                };
+            }
+
+            $parameters['properties'][$paramName] = [
+                'type' => $paramType,
+            ];
+
+            if (!$parameter->isOptional()) {
+                $parameters['required'][] = $paramName;
+            }
+        }
+
+        return [
+            'type' => 'function',
+            'function' => [
+                'name' => $name,
+                'description' => $description,
+                'parameters' => $parameters,
+            ],
+        ];
+    }
+
+    protected function parseDescription(string $docComment): string
+    {
+        $docComment = str_replace(['/**', '*/', '*'], '', $docComment);
+        $lines = explode("\n", $docComment);
+        $description = '';
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line) || str_starts_with($line, '@')) {
+                continue;
+            }
+            $description .= $line . ' ';
+        }
+
+        return trim($description) ?: 'No description provided.';
+    }
+
     public function schema(array $schema, string $name = 'response_schema'): self
     {
         $this->options['schema'] = $schema;
@@ -92,11 +183,45 @@ class PendingRequest
         return $this->driver;
     }
 
+    public function getMessages(): array
+    {
+        return $this->messages;
+    }
+
+    public function getOptions(): array
+    {
+        return $this->options;
+    }
+
+    public function addMessage(string $role, string $content): self
+    {
+        $this->messages[] = new Message($role, $content);
+        return $this;
+    }
+
+    public function setDriverName(string $name): self
+    {
+        $this->driverName = $name;
+        return $this;
+    }
+
+    public function getDriverName(): ?string
+    {
+        return $this->driverName ?? null;
+    }
+
     public function ask(string $prompt): string
     {
         $this->messages[] = Message::user($prompt);
 
         return $this->executeChat();
+    }
+
+    public function stream(string $prompt): iterable
+    {
+        $this->messages[] = Message::user($prompt);
+
+        return $this->executeStream();
     }
 
     public function asJson(string $prompt): array
@@ -111,6 +236,44 @@ class PendingRequest
 
     protected function executeChat(): string
     {
+        $this->applyPiiMasking();
+
+        $drivers = array_merge([$this->driver], $this->getFallbackDrivers());
+        $lastException = null;
+
+        foreach ($drivers as $driver) {
+            try {
+                return $driver->chat($this->messages, $this->options);
+            } catch (\Exception $e) {
+                $lastException = $e;
+                continue;
+            }
+        }
+
+        throw $lastException ?: new \Exception("All drivers failed.");
+    }
+
+    protected function executeStream(): iterable
+    {
+        $this->applyPiiMasking();
+
+        $drivers = array_merge([$this->driver], $this->getFallbackDrivers());
+        $lastException = null;
+
+        foreach ($drivers as $driver) {
+            try {
+                return $driver->stream($this->messages, $this->options);
+            } catch (\Exception $e) {
+                $lastException = $e;
+                continue;
+            }
+        }
+
+        throw $lastException ?: new \Exception("All drivers failed.");
+    }
+
+    protected function applyPiiMasking(): void
+    {
         if ($this->shouldMaskPii && $this->piiMasker) {
             foreach ($this->messages as $message) {
                 if ($this->shouldScrubPii) {
@@ -120,13 +283,21 @@ class PendingRequest
                 }
             }
         }
+    }
 
-        $response = $this->driver->chat($this->messages, $this->options);
+    protected function getFallbackDrivers(): array
+    {
+        $drivers = [];
+        $manager = app(AiManager::class);
 
-        if ($this->shouldMaskPii && $this->piiMasker && !$this->shouldScrubPii) {
-            $response = $this->piiMasker->unmask($response);
+        foreach ($this->fallbacks as $fallback) {
+            if ($fallback instanceof Driver) {
+                $drivers[] = $fallback;
+            } elseif (is_string($fallback)) {
+                $drivers[] = $manager->driver($fallback)->getDriver();
+            }
         }
 
-        return $response;
+        return $drivers;
     }
 }

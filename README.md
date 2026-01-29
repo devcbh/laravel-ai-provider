@@ -77,6 +77,90 @@ $data = Ai::schema($schema, 'person_info')->asJson('Tell me about a person named
 // Returns: ['name' => 'John', 'age' => 30, 'hobbies' => ['Reading', 'Cycling']]
 ```
 
+### Asynchronous Requests
+
+Handle multiple AI requests in parallel using Laravel's HTTP pool.
+
+```php
+use Devcbh\LaravelAiProvider\Facades\Ai;
+
+$responses = Ai::async()->ask([
+    'weather' => 'What is the weather in Tokyo?',
+    'news' => 'What are the top news in Japan today?',
+]);
+
+echo $responses['weather'];
+echo $responses['news'];
+
+// Or fluently with different drivers
+$responses = Ai::async()
+    ->add('gpt', Ai::driver('openai')->model('gpt-4'))
+    ->add('claude', Ai::driver('claude'))
+    ->execute();
+```
+
+### Global Failover (Provider Fallbacks)
+
+Define a "failover" chain. If the primary provider fails, it will automatically try the next one in the list.
+
+You can configure this globally in `config/ai.php`:
+
+```php
+'fallbacks' => ['gemini', 'claude'],
+```
+
+Or fluently per request:
+
+```php
+$response = Ai::fallback(['gemini', 'ollama'])->ask('Hello!');
+```
+
+### Streaming Support
+
+Add a `stream()` method to allow real-time UI updates (essential for chat applications).
+
+```php
+$stream = Ai::stream('Write a long story about a space cat.');
+
+foreach ($stream as $chunk) {
+    echo $chunk;
+    // ob_flush(); flush(); // For browser streaming
+}
+```
+
+### Function Calling (Tools)
+
+Allow AI to call PHP methods to fetch real-time data or perform actions. You can pass a full JSON definition or just a PHP callable.
+
+```php
+// Using a PHP callable (Recommended)
+Ai::withTools([[$orderService, 'getDetails']])
+  ->ask("Where is my order #123?");
+
+// Or using manual JSON definition
+$tools = [
+    [
+        'type' => 'function',
+        'function' => [
+            'name' => 'get_weather',
+            'description' => 'Get the current weather in a given location',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'location' => [
+                        'type' => 'string',
+                        'description' => 'The city and state, e.g. San Francisco, CA',
+                    ],
+                ],
+                'required' => ['location'],
+            ],
+        ],
+    ]
+];
+
+$response = Ai::withTools($tools)->ask('What is the weather in Tokyo?');
+```
+
 ### Using a Specific Driver
 
 You can switch drivers fluently:
@@ -323,13 +407,13 @@ The package is "AI Aware", meaning it understands the risks associated with send
 
 ## Supported Drivers
 
-| Driver | JSON Response | Custom Schema | PII Masking |
-| :--- | :---: | :---: | :---: |
-| `openai` | ✅ | ✅ | ✅ |
-| `gemini` | ✅ | ✅ | ✅ |
-| `claude` | ✅ | ✅ | ✅ |
-| `mistral` | ✅ | ✅ | ✅ |
-| `ollama` | ✅ | ✅ | ✅ |
+| Driver | JSON Response | Custom Schema | PII Masking | Streaming | Tools |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `openai` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `gemini` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `claude` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `mistral` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ollama` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ## License
 
